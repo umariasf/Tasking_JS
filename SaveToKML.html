@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Save To KML</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.22/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.22/"></script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+  <script>
+    require([
+      "esri/Map",
+      "esri/layers/FeatureLayer",
+      "esri/views/MapView",
+    ], function (Map, FeatureLayer, MapView) {
+      let filteredPointGeometries=[];
+      const renderer = {
+          type: "simple", // autocasts as new SimpleRenderer()
+          symbol: {
+            type: "simple-fill", // autocasts as new SimpleFillSymbol()
+            color: [255, 255, 255, 0.5],
+            style: "none",
+            outline: {  // autocasts as new SimpleLineSymbol()
+              color: "black",
+              width: 2
+            }
+          }
+        };
+      const dist = new FeatureLayer({
+        url: 'https://dev.ksrsac.in/kgismaps/rest/services/Boundaries/Admin_Dynamic/MapServer/1',
+        renderer: renderer,
+        outFields: ['*']
+      });
+      
+      const apmc = new FeatureLayer({
+        url: "https://stg3.ksrsac.in/kgis/rest/services/AGRICULTURE/Agriculture/MapServer/1"
+      })
+
+      const map = new Map({
+        basemap: "topo-vector",
+        layers: [apmc, dist]
+      });
+
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        zoom: 8,
+        center: [75.713890,  15.317277]
+      });
+
+      let highlight, distView, apmcView;
+      view.whenLayerView(dist).then(function(layerView) {
+        distView = layerView;
+      });
+      
+      view.whenLayerView(apmc).then(function(layerView) {
+        apmcView = layerView;
+      });
+      
+      view.on("click", (event) => {
+        const query = {
+          geometry: event.mapPoint,
+          returnGeometry: true
+        };
+        
+        distView.queryFeatures(query).then((results) => {
+          if (results.features.length > 0) {
+            if (highlight) {
+              highlight.remove();
+            }
+            // highlight query results
+            highlight = distView.highlight(results.features);
+
+            apmcView.filter = {
+              geometry: results.features[0].geometry
+            };
+            apmcView.queryFeatures().then((filteredFeatures) => {
+            filteredResults = filteredFeatures.features;
+            
+            filteredPointGeometries = filteredResults.map(function(feature) {
+            return feature.geometry;
+            
+            });
+            console.log(filteredPointGeometries);
+            });
+          }
+         });
+      });
+
+      function downloadKML() {
+        let kmlContent = "<?xml version='1.0' encoding='UTF-8'?>\n";
+        kmlContent += "<kml xmlns='http://www.opengis.net/kml/2.2'>\n";
+        kmlContent += "<Document>\n";
+        for (let i = 0; i < filteredPointGeometries.length; i++) {
+            kmlContent += "<Placemark>\n";
+            kmlContent += "<Point>\n";
+            kmlContent += "<coordinates>" + filteredPointGeometries[i].longitude + "," + filteredPointGeometries[i].latitude + "</coordinates>\n";
+            kmlContent += "</Point>\n";
+            kmlContent += "</Placemark>\n";
+        }
+        kmlContent += "</Document>\n";
+        kmlContent += "</kml>\n";
+
+        let data = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+        let downloadLink = document.createElement("a");
+        downloadLink.download = "points.kml";
+        downloadLink.href = window.URL.createObjectURL(data);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        }
+        document.getElementById("download-kml-button").addEventListener("click", function () {
+            downloadKML();
+        });
+
+
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv">
+    <div class="col-md-2">
+      <button id="download-kml-button" class="myButton" data-toggle="modal">Download To KML</button>
+      </div>
+  </div>
+
+</body>
+
+</html>‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍
